@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <ThingCategoryDef>
+    <defName>PackedMeals</defName>
+    <label>packed meals</label>
+    <parent>FoodMeals</parent>
+  </ThingCategoryDef>
+
+  <ThingDef Abstract="True" Name="LunchMealBase">
+    <thingClass>ThingWithComps</thingClass>
+    <category>Item</category>
+    <graphicData>
+      <texPath>LunchMeal</texPath>
+      <graphicClass>Graphic_StackCount</graphicClass>
+    </graphicData>
+    <stackLimit>10</stackLimit>
+    <rotatable>false</rotatable>
+    <selectable>true</selectable>
+    <thingCategories>
+      <li>FoodMeals</li>
+    </thingCategories>
+    <statBases>
+      <DeteriorationRate>10</DeteriorationRate>
+      <Flammability>1.0</Flammability>
+      <Beauty>-4</Beauty>
+    </statBases>
+    <comps>
+      <li Class="CompProperties_Ingredients"/>
+      <li Class="CompProperties_FoodPoisonable"/>
+      <li Class="CompProperties_Rottable">
+        <daysToRotStart>5</daysToRotStart>
+        <rotDestroys>true</rotDestroys>
+      </li>
+    </comps>
+  </ThingDef>
+
+</Defs>

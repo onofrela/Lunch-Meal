@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+    <name>Lunch Meal</name>
+    <author>Onofre</author>
+    <packageId>onofre150.me.lunchmeal</packageId>
+    <supportedVersions>
+        <li>1.6</li>
+    </supportedVersions>
+    <description>
+&lt;color=#5DADE2&gt;&lt;b&gt;Lunch Meal&lt;/b&gt;&lt;/color&gt;
+Tired of your colonists suffering the "ate without table" debuff? Tired of them walking halfway across the map just to sit down? &lt;b&gt;This mod adds the ability to pack prepared meals into portable lunches.&lt;/b&gt;
+Wrap any meal at a stove or campfire. These packed lunches can be consumed anywhere without the need for a table, making them perfect for hunters, miners, and soldiers on the front lines.
+&lt;color=#F39C12&gt;&lt;b&gt;━━━━━━ FEATURES ━━━━━━&lt;/b&gt;&lt;/color&gt;
+&lt;color=#2ECC71&gt;► Universal Compatibility:&lt;/color&gt; Automatically detects meals from all mods, including Vanilla Cooking Expanded.
+&lt;color=#9B59B6&gt;► Quality Preservation:&lt;/color&gt; Packed meals retain the nutrition, mood effects, and ingredients of the original dish.
+&lt;color=#F39C12&gt;&lt;b&gt;━━━━━━ DETAILS ━━━━━━&lt;/b&gt;&lt;/color&gt;
+&lt;b&gt;Eat Anywhere&lt;/b&gt; — No table required. Eliminate negative mood thoughts for field workers.
+&lt;b&gt;Automatic detection&lt;/b&gt; — Scans all active meals. No extra cooking skill required.
+&lt;color=#5DADE2&gt;► github.com/onofrela/Lunch-Meal&lt;/color&gt;
+    </description>
+    <modDependencies>
+        <li>
+            <packageId>brrainz.harmony</packageId>
+            <displayName>Harmony</displayName>
+            <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+        </li>
+    </modDependencies>
+</ModMetaData>
