@@ -8,7 +8,7 @@
     ".NETFramework,Version=v4.7.2": []
   },
   "packageFolders": {
-    "C:\\Users\\arroy\\.nuget\\packages\\": {},
+    "C:\\Users\\CodexSandboxOffline\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
@@ -17,7 +17,7 @@
       "projectUniqueName": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\RimWorld\\Mods\\Lunch Meal\\Source\\LunchMeal\\LunchMeal.csproj",
       "projectName": "LunchMeal",
       "projectPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\RimWorld\\Mods\\Lunch Meal\\Source\\LunchMeal\\LunchMeal.csproj",
-      "packagesPath": "C:\\Users\\arroy\\.nuget\\packages\\",
+      "packagesPath": "C:\\Users\\CodexSandboxOffline\\.nuget\\packages\\",
       "outputPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\RimWorld\\Mods\\Lunch Meal\\Source\\LunchMeal\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [

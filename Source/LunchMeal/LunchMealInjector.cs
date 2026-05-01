@@ -72,9 +72,7 @@ namespace LunchMeal
                 recipe.PostLoad();
                 recipe.ResolveReferences();
 
-                // Register item in direct category's child list
-                if (!packedMealsCat.childThingDefs.Contains(packed))
-                    packedMealsCat.childThingDefs.Add(packed);
+                RegisterThingInCategory(packedMealsCat, packed);
 
                 foreach (ThingDef table in cookingTables)
                 {
@@ -122,7 +120,10 @@ namespace LunchMeal
                         && p.thingDef.thingCategories.Any(c => c.defName == "FoodMeals")));
         }
 
-        private static ThingDef CreatePackedThingDef(ThingDef source, ModContentPack modContent, ThingCategoryDef packedMealsCat)
+        private static ThingDef CreatePackedThingDef(
+            ThingDef source,
+            ModContentPack modContent,
+            ThingCategoryDef packedMealsCat)
         {
             var graphicData = new GraphicData
             {
@@ -274,6 +275,15 @@ namespace LunchMeal
 
                 parent = parent.parent;
             }
+        }
+
+        private static void RegisterThingInCategory(ThingCategoryDef category, ThingDef thingDef)
+        {
+            if (category.childThingDefs == null)
+                category.childThingDefs = new List<ThingDef>();
+
+            if (!category.childThingDefs.Contains(thingDef))
+                category.childThingDefs.Add(thingDef);
         }
 
         private static void CopyStatBase(List<StatModifier> target, ThingDef source, StatDef stat)
