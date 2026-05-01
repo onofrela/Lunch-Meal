@@ -13,6 +13,10 @@ namespace LunchMeal
         internal const string PackedPrefix = "LunchMeal_";
         internal const string PackedPrefix_Recipe = "MakeLunchMeal_";
 
+        // Filters that belong to packing recipes — the ThingFilter patch skips these
+        // to prevent a packed meal from being used as its own packing ingredient.
+        internal static readonly HashSet<ThingFilter> PackingRecipeFilters = new HashSet<ThingFilter>();
+
         private static readonly FieldInfo allRecipesCachedField =
             typeof(ThingDef).GetField("allRecipesCached",
                 BindingFlags.NonPublic | BindingFlags.Instance);
@@ -200,6 +204,9 @@ namespace LunchMeal
 
             var fixedFilter = new ThingFilter();
             fixedFilter.SetAllow(source, true);
+
+            PackingRecipeFilters.Add(ingredientFilter);
+            PackingRecipeFilters.Add(fixedFilter);
 
             var recipe = new RecipeDef
             {

@@ -56,6 +56,10 @@ namespace LunchMeal
             if (__result || def == null || !def.defName.StartsWith(LunchMealInjector.PackedPrefix))
                 return;
 
+            // Don't expand packing-recipe filters: would allow a packed meal as its own ingredient.
+            if (LunchMealInjector.PackingRecipeFilters.Contains(__instance))
+                return;
+
             string sourceDefName = def.defName.Substring(LunchMealInjector.PackedPrefix.Length);
             ThingDef sourceDef = DefDatabase<ThingDef>.GetNamedSilentFail(sourceDefName);
             if (sourceDef == null)
