@@ -53,7 +53,7 @@ namespace LunchMeal
                 .ToList();
 
             List<ThingDef> cookingTables = DefDatabase<ThingDef>.AllDefs
-                .Where(IsCookingWorkTable)
+                .Where(IsPackagingTable)
                 .ToList();
 
             var newThingDefs = new List<ThingDef>();
@@ -90,10 +90,6 @@ namespace LunchMeal
                 newRecipeDefs.Add(recipe);
             }
 
-            // Assign short hashes ONLY to our new defs (never touch existing defs)
-            AssignShortHashes<ThingDef>(newThingDefs);
-            AssignShortHashes<RecipeDef>(newRecipeDefs);
-
             // Proactively build category caches while still on the main thread.
             // Never set caches to null: the game rebuilds them in parallel and crashes.
             // Instead we populate them here so the parallel code finds them pre-built.
@@ -114,14 +110,9 @@ namespace LunchMeal
                 && !d.defName.StartsWith(PackedPrefix);
         }
 
-        private static bool IsCookingWorkTable(ThingDef d)
+        private static bool IsPackagingTable(ThingDef d)
         {
-            return d.recipes != null
-                && d.recipes.Any(r =>
-                    r.products != null
-                    && r.products.Any(p =>
-                        p.thingDef?.thingCategories != null
-                        && p.thingDef.thingCategories.Any(c => c.defName == "FoodMeals")));
+            return d.defName == "LunchMeal_PackagingTable";
         }
 
         private static ThingDef CreatePackedThingDef(
@@ -151,6 +142,7 @@ namespace LunchMeal
                 selectable = true,
                 alwaysHaulable = true,
                 thingCategories = new List<ThingCategoryDef> { packedMealsCat },
+                socialPropernessMatters = source.socialPropernessMatters,
             };
 
             def.statBases = new List<StatModifier>();
@@ -202,8 +194,16 @@ namespace LunchMeal
             ingredient.filter = ingredientFilter;
             ingredient.SetBaseCount(1f);
 
+            var woodFilter = new ThingFilter();
+            woodFilter.SetAllow(ThingDefOf.WoodLog, true);
+
+            var woodIngredient = new IngredientCount();
+            woodIngredient.filter = woodFilter;
+            woodIngredient.SetBaseCount(1f);
+
             var fixedFilter = new ThingFilter();
             fixedFilter.SetAllow(source, true);
+            fixedFilter.SetAllow(ThingDefOf.WoodLog, true);
 
             PackingRecipeFilters.Add(ingredientFilter);
             PackingRecipeFilters.Add(fixedFilter);
@@ -217,7 +217,7 @@ namespace LunchMeal
                 workAmount = 100f,
                 workSkill = SkillDefOf.Cooking,
                 workSpeedStat = StatDefOf.WorkSpeedGlobal,
-                ingredients = new List<IngredientCount> { ingredient },
+                ingredients = new List<IngredientCount> { ingredient, woodIngredient },
                 fixedIngredientFilter = fixedFilter,
                 defaultIngredientFilter = fixedFilter,
                 products = new List<ThingDefCountClass> { new ThingDefCountClass(output, 1) },
@@ -229,34 +229,6 @@ namespace LunchMeal
             recipe.soundWorking = DefDatabase<SoundDef>.GetNamed("Recipe_CookMeal", errorOnFail: false);
 
             return recipe;
-        }
-
-        // Calls the private GiveShortHash only for defs that don't have one yet,
-        // building the taken-hash set from existing defs of the same type.
-        private static readonly MethodInfo giveShortHashMethod =
-            typeof(ShortHashGiver).GetMethod("GiveShortHash",
-                BindingFlags.NonPublic | BindingFlags.Static);
-
-        private static void AssignShortHashes<T>(List<T> newDefs) where T : Def
-        {
-            if (giveShortHashMethod == null)
-            {
-                Log.Warning("[LunchMeal] ShortHashGiver.GiveShortHash not found; hashes won't be assigned.");
-                return;
-            }
-
-            var takenHashes = new HashSet<ushort>(
-                DefDatabase<T>.AllDefs
-                    .Where(d => d.shortHash != 0)
-                    .Select(d => d.shortHash));
-
-            foreach (T def in newDefs)
-            {
-                if (def.shortHash != 0) continue;
-                giveShortHashMethod.Invoke(null, new object[] { def, typeof(T), takenHashes });
-                if (def.shortHash != 0)
-                    takenHashes.Add(def.shortHash);
-            }
         }
 
         private static void PopulateCategoryCaches(ThingCategoryDef directCat, List<ThingDef> newDefs)

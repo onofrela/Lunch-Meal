@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <ThingDef ParentName="BuildingBase">
+    <defName>LunchMeal_PackagingTable</defName>
+    <label>packaging table</label>
+    <description>A simple table used to wrap and pack meals into portable lunches. Requires a piece of wood for each pack.</description>
+    <thingClass>Building_WorkTable</thingClass>
+    <graphicData>
+      <texPath>Things/Building/PackagingTable</texPath>
+      <graphicClass>Graphic_Multi</graphicClass>
+      <drawSize>(3.5,1.5)</drawSize>
+      <damageData>
+        <cornerTL>Damage/Corner</cornerTL>
+        <cornerTR>Damage/Corner</cornerTR>
+        <cornerBL>Damage/Corner</cornerBL>
+        <cornerBR>Damage/Corner</cornerBR>
+      </damageData>
+    </graphicData>
+    <altitudeLayer>Building</altitudeLayer>
+    <passability>PassThroughOnly</passability>
+    <pathCost>70</pathCost>
+    <fillPercent>0.5</fillPercent>
+    <rotatable>true</rotatable>
+    <neverMultiSelect>true</neverMultiSelect>
+    <size>(2,1)</size>
+    <costList>
+      <Steel>40</Steel>
+      <WoodLog>30</WoodLog>
+    </costList>
+    <statBases>
+      <MaxHitPoints>120</MaxHitPoints>
+      <WorkToBuild>2000</WorkToBuild>
+      <Mass>15</Mass>
+      <Flammability>1.0</Flammability>
+    </statBases>
+    <building>
+      <spawnedConceptLearnOpportunity>BillsTab</spawnedConceptLearnOpportunity>
+      <buildingTags>
+        <li>Production</li>
+      </buildingTags>
+    </building>
+    <inspectorTabs>
+      <li>ITab_Bills</li>
+    </inspectorTabs>
+    <hasInteractionCell>true</hasInteractionCell>
+    <interactionCellOffset>(0,0,-1)</interactionCellOffset>
+    <surfaceType>Item</surfaceType>
+    <designationCategory>Production</designationCategory>
+    <thingCategories>
+      <li>BuildingsProduction</li>
+    </thingCategories>
+    <uiIconScale>1.0</uiIconScale>
+    <placeWorkers>
+      <li>PlaceWorker_PreventInteractionSpotOverlap</li>
+    </placeWorkers>
+    <comps>
+      <li Class="CompProperties_AffectedByFacilities">
+        <linkableFacilities>
+          <li>ToolCabinet</li>
+        </linkableFacilities>
+      </li>
+    </comps>
+    <minifiedDef>MinifiedThing</minifiedDef>
+  </ThingDef>
+
+  <WorkGiverDef>
+    <defName>LunchMeal_PackMeals</defName>
+    <label>pack meals</label>
+    <giverClass>WorkGiver_DoBill</giverClass>
+    <workType>Cooking</workType>
+    <priorityInType>90</priorityInType>
+    <fixedBillGiverDefs>
+      <li>LunchMeal_PackagingTable</li>
+    </fixedBillGiverDefs>
+    <verb>pack at</verb>
+    <gerund>packing at</gerund>
+    <requiredCapacities>
+      <li>Manipulation</li>
+    </requiredCapacities>
+  </WorkGiverDef>
+
+</Defs>
