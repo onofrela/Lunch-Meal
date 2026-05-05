@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <ThingDef ParentName="BaseFilth">
+    <defName>Filth_LunchTrash</defName>
+    <label>lunch trash</label>
+    <description>Scraps of packaging left behind after eating a packed lunch.</description>
+    <graphicData>
+      <texPath>Things/Filth/LunchTrash</texPath>
+      <graphicClass>Graphic_Cluster</graphicClass>
+    </graphicData>
+    <statBases>
+      <Beauty>-12</Beauty>
+      <Cleanliness>-4</Cleanliness>
+    </statBases>
+    <filth>
+      <placementMask>
+        <li>Terrain</li>
+        <li>Unnatural</li>
+      </placementMask>
+      <disappearsInDays>8~12</disappearsInDays>
+      <rainWashes>true</rainWashes>
+      <cleaningWorkToReduceThickness>25</cleaningWorkToReduceThickness>
+      <canFilthAttach>true</canFilthAttach>
+      <cleaningSound>Interact_CleanFilth_Scattered</cleaningSound>
+    </filth>
+  </ThingDef>
+
+</Defs>

@@ -141,4 +141,42 @@ namespace LunchMeal
                 allNodes.Add(packedNode);
         }
     }
+
+    [HarmonyPatch(typeof(Thing), nameof(Thing.Ingested))]
+    static class Patch_Thing_SpawnLunchTrash
+    {
+        private static ThingDef _lunchTrashDef;
+        private static bool _defLookupDone;
+
+        private static ThingDef LunchTrashDef
+        {
+            get
+            {
+                if (!_defLookupDone)
+                {
+                    _lunchTrashDef = DefDatabase<ThingDef>.GetNamed("Filth_LunchTrash", errorOnFail: false);
+                    _defLookupDone = true;
+                }
+                return _lunchTrashDef;
+            }
+        }
+
+        static void Postfix(Thing __instance, Pawn ingester)
+        {
+            if (ingester == null || ingester.Map == null)
+                return;
+
+            if (!__instance.def.defName.StartsWith(LunchMealInjector.PackedPrefix))
+                return;
+
+            ThingDef trashDef = LunchTrashDef;
+            if (trashDef == null)
+            {
+                Log.Warning("[LunchMeal] Could not find Filth_LunchTrash def — trash will not spawn.");
+                return;
+            }
+
+            FilthMaker.TryMakeFilth(ingester.Position, ingester.Map, trashDef, 1);
+        }
+    }
 }
