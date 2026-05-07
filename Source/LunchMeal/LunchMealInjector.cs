@@ -104,10 +104,17 @@ namespace LunchMeal
             return d.IsIngestible
                 && d.ingestible?.foodType == FoodTypeFlags.Meal
                 && d.thingCategories != null
-                && d.thingCategories.Any(c => c.defName == "FoodMeals")
+                && d.thingCategories.Any(c => CategoryIsOrUnder(c, "FoodMeals"))
                 && d.defName != "MealSurvivalPack"
                 && d.defName != "MealNutrientPaste"
                 && !d.defName.StartsWith(PackedPrefix);
+        }
+
+        private static bool CategoryIsOrUnder(ThingCategoryDef cat, string targetDefName)
+        {
+            for (var c = cat; c != null; c = c.parent)
+                if (c.defName == targetDefName) return true;
+            return false;
         }
 
         private static bool IsPackagingTable(ThingDef d)
