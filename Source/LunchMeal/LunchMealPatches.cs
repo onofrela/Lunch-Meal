@@ -142,6 +142,78 @@ namespace LunchMeal
         }
     }
 
+    // Ensures countedAmounts always has an entry for every packed-meal def after
+    // UpdateResourceCounts or ResetResourceCounts clear the dictionary. Without this,
+    // GetCount logs an error for defs that have 0 items on the map (never in the dict).
+    [HarmonyPatch]
+    static class Patch_ResourceCounter_EnsurePackedMealEntries
+    {
+        private static readonly FieldInfo countedAmountsField =
+            AccessTools.Field(typeof(ResourceCounter), "countedAmounts");
+
+        private static List<ThingDef> packedDefs;
+
+        static IEnumerable<System.Reflection.MethodBase> TargetMethods()
+        {
+            yield return AccessTools.Method(typeof(ResourceCounter), "UpdateResourceCounts");
+            yield return AccessTools.Method(typeof(ResourceCounter), "ResetResourceCounts");
+        }
+
+        static void Postfix(ResourceCounter __instance)
+        {
+            var amounts = countedAmountsField?.GetValue(__instance) as Dictionary<ThingDef, int>;
+            if (amounts == null) return;
+
+            if (packedDefs == null)
+                packedDefs = DefDatabase<ThingDef>.AllDefs
+                    .Where(d => d.defName.StartsWith(LunchMealInjector.PackedPrefix))
+                    .ToList();
+
+            foreach (ThingDef def in packedDefs)
+                if (!amounts.ContainsKey(def))
+                    amounts[def] = 0;
+        }
+    }
+
+    // Safety net: if an entry is still missing (e.g. called before any update runs),
+    // count directly from the map without triggering the vanilla error log.
+    [HarmonyPatch]
+    static class Patch_ResourceCounter_GetCount_PackedMeals
+    {
+        private static readonly FieldInfo countedAmountsField =
+            AccessTools.Field(typeof(ResourceCounter), "countedAmounts");
+
+        private static readonly FieldInfo mapField =
+            AccessTools.Field(typeof(ResourceCounter), "map");
+
+        static System.Reflection.MethodBase TargetMethod() =>
+            AccessTools.Method(typeof(ResourceCounter), "GetCount", new[] { typeof(ThingDef) });
+
+        static bool Prefix(ResourceCounter __instance, ThingDef def, ref int __result)
+        {
+            if (!def.defName.StartsWith(LunchMealInjector.PackedPrefix))
+                return true;
+
+            var amounts = countedAmountsField?.GetValue(__instance) as Dictionary<ThingDef, int>;
+            if (amounts != null && amounts.TryGetValue(def, out int cached))
+            {
+                __result = cached;
+                return false;
+            }
+
+            __result = 0;
+            var map = mapField?.GetValue(__instance) as Map;
+            if (map != null)
+                foreach (Thing t in map.listerThings.ThingsOfDef(def))
+                    __result += t.stackCount;
+
+            if (amounts != null)
+                amounts[def] = __result;
+
+            return false;
+        }
+    }
+
     [HarmonyPatch(typeof(Thing), nameof(Thing.Ingested))]
     static class Patch_Thing_SpawnLunchTrash
     {

@@ -150,6 +150,9 @@ namespace LunchMeal
                 alwaysHaulable = true,
                 thingCategories = new List<ThingCategoryDef> { packedMealsCat },
                 socialPropernessMatters = source.socialPropernessMatters,
+                resourceReadoutPriority = source.resourceReadoutPriority != ResourceCountPriority.Uncounted
+                    ? source.resourceReadoutPriority
+                    : ResourceCountPriority.Middle,
             };
 
             def.statBases = new List<StatModifier>();
