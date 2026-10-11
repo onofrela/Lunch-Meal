@@ -23,11 +23,33 @@ namespace LunchMeal
         static void Prefix(RecipeDef recipeDef, List<Thing> ingredients)
         {
             pendingSubIngredients = null;
-            if (!recipeDef.defName.StartsWith(LunchMealInjector.PackedPrefix_Recipe)) return;
-            var meal = ingredients?.FirstOrDefault();
-            var comp = meal?.TryGetComp<CompIngredients>();
+
+            if (!recipeDef.defName.StartsWith(LunchMealInjector.PackedPrefix_Recipe))
+                return;
+
+            // Find the actual meal, not wood, not destroyed leftovers, nothing
+            Thing meal = null;
+            if (ingredients != null)
+                for (int i = 0; i < ingredients.Count; i++)
+                    if (ingredients[i] != null && ingredients[i].def.IsIngestible)
+                    { meal = ingredients[i]; break; }
+
+            if (meal == null) return;
+
+            var comp = meal.TryGetComp<CompIngredients>();
             if (comp != null)
                 pendingSubIngredients = comp.ingredients.ToList();
+
+            if (recipeDef.defName != LunchMealInjector.PackedPrefix_Recipe + "Any")
+                return;
+
+            string packedDefName = LunchMealInjector.PackedPrefix + meal.def.defName;
+            ThingDef packedDef = DefDatabase<ThingDef>.GetNamedSilentFail(packedDefName);
+            if (packedDef != null)
+                recipeDef.products = new List<ThingDefCountClass>
+                {
+                    new ThingDefCountClass(packedDef, 1)
+                };
         }
     }
 
@@ -45,28 +67,6 @@ namespace LunchMeal
                     comp.RegisterIngredient(subDef);
 
             Patch_GenRecipe_CaptureSubIngredients.pendingSubIngredients = null;
-        }
-    }
-
-    [HarmonyPatch(typeof(ThingFilter), nameof(ThingFilter.Allows), typeof(ThingDef))]
-    static class Patch_ThingFilter_AllowPackedMealsFromSourceMeal
-    {
-        static void Postfix(ThingFilter __instance, ThingDef def, ref bool __result)
-        {
-            if (__result || def == null || !def.defName.StartsWith(LunchMealInjector.PackedPrefix))
-                return;
-
-            // Don't expand packing-recipe filters: would allow a packed meal as its own ingredient.
-            if (LunchMealInjector.PackingRecipeFilters.Contains(__instance))
-                return;
-
-            string sourceDefName = def.defName.Substring(LunchMealInjector.PackedPrefix.Length);
-            ThingDef sourceDef = DefDatabase<ThingDef>.GetNamedSilentFail(sourceDefName);
-            if (sourceDef == null)
-                return;
-
-            if (__instance.Allows(sourceDef))
-                __result = true;
         }
     }
 
@@ -142,7 +142,7 @@ namespace LunchMeal
         }
     }
 
-    // Ensures countedAmounts always has an entry for every packed-meal def after
+    // This ensures countedAmounts always has an entry for every packed-meal def after
     // UpdateResourceCounts or ResetResourceCounts clear the dictionary. Without this,
     // GetCount logs an error for defs that have 0 items on the map (never in the dict).
     [HarmonyPatch]
@@ -189,13 +189,13 @@ namespace LunchMeal
         static System.Reflection.MethodBase TargetMethod() =>
             AccessTools.Method(typeof(ResourceCounter), "GetCount", new[] { typeof(ThingDef) });
 
-        static bool Prefix(ResourceCounter __instance, ThingDef def, ref int __result)
+        static bool Prefix(ResourceCounter __instance, ThingDef rDef, ref int __result)
         {
-            if (!def.defName.StartsWith(LunchMealInjector.PackedPrefix))
+            if (!rDef.defName.StartsWith(LunchMealInjector.PackedPrefix))
                 return true;
 
             var amounts = countedAmountsField?.GetValue(__instance) as Dictionary<ThingDef, int>;
-            if (amounts != null && amounts.TryGetValue(def, out int cached))
+            if (amounts != null && amounts.TryGetValue(rDef, out int cached))
             {
                 __result = cached;
                 return false;
@@ -204,11 +204,11 @@ namespace LunchMeal
             __result = 0;
             var map = mapField?.GetValue(__instance) as Map;
             if (map != null)
-                foreach (Thing t in map.listerThings.ThingsOfDef(def))
+                foreach (Thing t in map.listerThings.ThingsOfDef(rDef))
                     __result += t.stackCount;
 
             if (amounts != null)
-                amounts[def] = __result;
+                amounts[rDef] = __result;
 
             return false;
         }

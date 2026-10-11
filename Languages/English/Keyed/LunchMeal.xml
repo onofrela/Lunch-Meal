@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <LunchMeal_CollectDaily>Collect lunches daily</LunchMeal_CollectDaily>
+  <LunchMeal_CollectDailyTip>Once per day, fill the pawn's inventory up to the selected number of permitted packed lunches. Waits until the pawn finishes their task or wakes. Missing stock and interruptions are not retried that day. When hungry without lunches, normal food behavior resumes.</LunchMeal_CollectDailyTip>
+  <LunchMeal_Quantity>Lunches to carry: {0}</LunchMeal_Quantity>
+  <LunchMeal_Hour>Collection hour: {0}:00</LunchMeal_Hour>
+  <LunchMeal_PreferTable>Prefer normal meals near a table</LunchMeal_PreferTable>
+  <LunchMeal_PreferTableTip>When choosing food to eat, prefer an allowed normal meal within 32 tiles if a usable seat next to a table is within 32 tiles of that meal. Otherwise prefer a permitted packed lunch from inventory, then use normal food selection.</LunchMeal_PreferTableTip>
+</LanguageData>

@@ -5,6 +5,7 @@
     <defName>PackedMeals</defName>
     <label>packed meals</label>
     <parent>FoodMeals</parent>
+    <iconPath>LunchMeal/LunchMeal_a</iconPath>
   </ThingCategoryDef>
 
   <ThingDef Abstract="True" Name="LunchMealBase">

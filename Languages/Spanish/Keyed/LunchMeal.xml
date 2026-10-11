@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <LunchMeal_CollectDaily>Recoger lunches diariamente</LunchMeal_CollectDaily>
+  <LunchMeal_CollectDailyTip>Una vez al día, completa el inventario hasta la cantidad elegida de lunches permitidos. Espera a que el colono termine su tarea o despierte. Si falta comida o se interrumpe la recogida, no vuelve a intentarlo ese día. Si tiene hambre y no lleva lunches, recupera el comportamiento normal.</LunchMeal_CollectDailyTip>
+  <LunchMeal_Quantity>Lunches que llevar: {0}</LunchMeal_Quantity>
+  <LunchMeal_Hour>Hora de recogida: {0}:00</LunchMeal_Hour>
+  <LunchMeal_PreferTable>Preferir comida normal cerca de una mesa</LunchMeal_PreferTable>
+  <LunchMeal_PreferTableTip>Al decidir qué comer, prefiere una comida normal permitida a menos de 32 casillas si hay un asiento utilizable junto a una mesa a menos de 32 casillas de esa comida. Si no, prefiere un lunch permitido del inventario; sin lunch, busca comida normalmente.</LunchMeal_PreferTableTip>
+</LanguageData>

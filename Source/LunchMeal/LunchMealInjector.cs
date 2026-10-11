@@ -13,8 +13,8 @@ namespace LunchMeal
         internal const string PackedPrefix = "LunchMeal_";
         internal const string PackedPrefix_Recipe = "MakeLunchMeal_";
 
-        // Filters that belong to packing recipes — the ThingFilter patch skips these
-        // to prevent a packed meal from being used as its own packing ingredient.
+        // Packing recipes retain explicit original-food filters; policy selections
+        // must never broaden these to accept already packed meals.
         internal static readonly HashSet<ThingFilter> PackingRecipeFilters = new HashSet<ThingFilter>();
 
         private static readonly FieldInfo allRecipesCachedField =
@@ -28,6 +28,13 @@ namespace LunchMeal
         private static readonly FieldInfo sortedChildThingDefsCachedField =
             typeof(ThingCategoryDef).GetField("sortedChildThingDefsCached",
                 BindingFlags.NonPublic | BindingFlags.Instance);
+
+        private static readonly FieldInfo takenHashesField = typeof(ShortHashGiver).GetField(
+            "takenHashesPerDeftype", BindingFlags.NonPublic | BindingFlags.Static);
+        private static readonly Action<Def, Type, HashSet<ushort>> giveShortHash =
+            (Action<Def, Type, HashSet<ushort>>)Delegate.CreateDelegate(
+                typeof(Action<Def, Type, HashSet<ushort>>), typeof(ShortHashGiver).GetMethod(
+                    "GiveShortHash", BindingFlags.NonPublic | BindingFlags.Static));
 
         static LunchMealInjector()
         {
@@ -61,8 +68,9 @@ namespace LunchMeal
 
             foreach (ThingDef meal in mealDefs)
             {
-                ThingDef packed = CreatePackedThingDef(meal, modContent, packedMealsCat);
-                RecipeDef recipe = CreatePackingRecipeDef(meal, packed);
+                int packCount = GetPackCount(meal);
+                ThingDef packed = CreatePackedThingDef(meal, modContent, packedMealsCat, packCount);
+                RecipeDef recipe = CreatePackingRecipeDef(meal, packed, packCount);
 
                 DefDatabase<ThingDef>.Add(packed);
                 DefDatabase<RecipeDef>.Add(recipe);
@@ -90,24 +98,80 @@ namespace LunchMeal
                 newRecipeDefs.Add(recipe);
             }
 
+            // "Pack any meal" recipe: single recipe that accepts any eligible meal
+            var standardMeals = mealDefs.Where(m => GetPackCount(m) == 1).ToList();
+            if (standardMeals.Any())
+            {
+                RecipeDef anyRecipe = CreateAnyMealPackingRecipeDef(standardMeals, modContent);
+                DefDatabase<RecipeDef>.Add(anyRecipe);
+                anyRecipe.PostLoad();
+                anyRecipe.ResolveReferences();
+                newRecipeDefs.Add(anyRecipe);
+                foreach (ThingDef table in cookingTables)
+                {
+                    if (table.recipes == null)
+                        table.recipes = new List<RecipeDef>();
+                    table.recipes.Add(anyRecipe);
+                    allRecipesCachedField?.SetValue(table, null);
+                }
+            }
+
             // Proactively build category caches while still on the main thread.
             // Never set caches to null: the game rebuilds them in parallel and crashes.
             // Instead we populate them here so the parallel code finds them pre-built.
             PopulateCategoryCaches(packedMealsCat, newThingDefs);
 
+            // Startup-generated defs are created after RimWorld's global hash assignment.
+            // Allocate through its existing registry, preserving every already assigned hash.
+            AssignGeneratedShortHashes(newThingDefs);
+            AssignGeneratedShortHashes(newRecipeDefs);
+
             Log.Message($"[LunchMeal] Generated {mealDefs.Count} packed lunch variants for: "
                 + string.Join(", ", mealDefs.Select(m => m.defName)));
         }
 
+        private static void AssignGeneratedShortHashes<T>(IEnumerable<T> generated) where T : Def, new()
+        {
+            var registry = (Dictionary<Type, HashSet<ushort>>)takenHashesField.GetValue(null);
+            if (!registry.TryGetValue(typeof(T), out var taken))
+            {
+                taken = new HashSet<ushort>();
+                registry.Add(typeof(T), taken);
+            }
+            // Include late definitions from other mods even if their allocator used its own set.
+            foreach (T existing in DefDatabase<T>.AllDefs)
+                if (existing.shortHash != 0) taken.Add(existing.shortHash);
+            foreach (T def in generated.OrderBy(d => d.defName, StringComparer.Ordinal))
+                if (def.shortHash == 0) giveShortHash(def, typeof(T), taken);
+            DefDatabase<T>.InitializeShortHashDictionary();
+        }
+
         private static bool IsEligibleMeal(ThingDef d)
         {
-            return d.IsIngestible
-                && d.ingestible?.foodType == FoodTypeFlags.Meal
+            if (!d.IsIngestible || d.ingestible == null) return false;
+            if (d.defName.StartsWith(PackedPrefix)) return false;
+            if (d.defName == "MealNutrientPaste") return false;
+
+            // Comidas preparadas en la categoría FoodMeals (comportamiento original)
+            if (d.ingestible.foodType == FoodTypeFlags.Meal
                 && d.thingCategories != null
                 && d.thingCategories.Any(c => CategoryIsOrUnder(c, "FoodMeals"))
-                && d.defName != "MealSurvivalPack"
-                && d.defName != "MealNutrientPaste"
-                && !d.defName.StartsWith(PackedPrefix);
+                && d.defName != "MealSurvivalPack")
+                return true;
+
+            // Travel foods: comidas tipo Meal fuera de FoodMeals (pemmican, beef jerky de mods, etc.)
+            if (d.ingestible.foodType == FoodTypeFlags.Meal
+                && (d.thingCategories == null || !d.thingCategories.Any(c => CategoryIsOrUnder(c, "FoodMeals")))
+                && d.defName != "MealSurvivalPack")
+                return true;
+
+            // Finger foods: alimentos crudos sabrosos (berries y equivalentes de mods)
+            if (d.ingestible.preferability == FoodPreferability.RawTasty
+                && d.thingCategories != null
+                && d.thingCategories.Any(c => CategoryIsOrUnder(c, "PlantFoodRaw")))
+                return true;
+
+            return false;
         }
 
         private static bool CategoryIsOrUnder(ThingCategoryDef cat, string targetDefName)
@@ -122,10 +186,25 @@ namespace LunchMeal
             return d.defName == "LunchMeal_PackagingTable";
         }
 
+        private static int GetPackCount(ThingDef source)
+        {
+            // Meals in FoodMeals always pack 1:1, ignoring nutrition.
+            if (source.ingestible.foodType == FoodTypeFlags.Meal
+                && source.thingCategories != null
+                && source.thingCategories.Any(c => CategoryIsOrUnder(c, "FoodMeals")))
+                return 1;
+
+            // Everything else (finger foods like berries, travel foods): by nutrition.
+            float nutrition = source.GetStatValueAbstract(StatDefOf.Nutrition);
+            if (nutrition <= 0f) return 1;
+            return Math.Max(1, (int)Math.Ceiling(1.0f / nutrition));
+        }
+
         private static ThingDef CreatePackedThingDef(
             ThingDef source,
             ModContentPack modContent,
-            ThingCategoryDef packedMealsCat)
+            ThingCategoryDef packedMealsCat,
+            int packCount)
         {
             var graphicData = new GraphicData
             {
@@ -156,7 +235,8 @@ namespace LunchMeal
             };
 
             def.statBases = new List<StatModifier>();
-            CopyStatBase(def.statBases, source, StatDefOf.Nutrition);
+            float srcNutrition = source.GetStatValueAbstract(StatDefOf.Nutrition);
+            def.statBases.Add(new StatModifier { stat = StatDefOf.Nutrition, value = srcNutrition * packCount });
             CopyStatBase(def.statBases, source, StatDefOf.Mass);
             float mv = source.GetStatValueAbstract(StatDefOf.MarketValue);
             def.statBases.Add(new StatModifier { stat = StatDefOf.MarketValue, value = mv * 1.1f });
@@ -179,13 +259,15 @@ namespace LunchMeal
             var si = source.ingestible;
             if (si != null)
             {
-                def.ingestible.preferability = si.preferability;
+                def.ingestible.preferability = si.preferability < FoodPreferability.MealLavish
+                    ? si.preferability + 1
+                    : FoodPreferability.MealLavish;
                 def.ingestible.tasteThought = si.tasteThought;
                 def.ingestible.foodType = si.foodType;
                 def.ingestible.ingestEffect = si.ingestEffect;
                 def.ingestible.ingestSound = si.ingestSound;
                 def.ingestible.maxNumToIngestAtOnce = si.maxNumToIngestAtOnce > 0 ? si.maxNumToIngestAtOnce : 1;
-                def.ingestible.optimalityOffsetHumanlikes = si.optimalityOffsetHumanlikes;
+                def.ingestible.optimalityOffsetHumanlikes = si.optimalityOffsetHumanlikes + 25f;
                 if (si.outcomeDoers != null)
                     def.ingestible.outcomeDoers = si.outcomeDoers.ToList();
             }
@@ -195,14 +277,14 @@ namespace LunchMeal
             return def;
         }
 
-        private static RecipeDef CreatePackingRecipeDef(ThingDef source, ThingDef output)
+        private static RecipeDef CreatePackingRecipeDef(ThingDef source, ThingDef output, int packCount)
         {
             var ingredientFilter = new ThingFilter();
             ingredientFilter.SetAllow(source, true);
 
             var ingredient = new IngredientCount();
             ingredient.filter = ingredientFilter;
-            ingredient.SetBaseCount(1f);
+            ingredient.SetBaseCount((float)packCount);
 
             var woodFilter = new ThingFilter();
             woodFilter.SetAllow(ThingDefOf.WoodLog, true);
@@ -232,6 +314,58 @@ namespace LunchMeal
                 defaultIngredientFilter = fixedFilter,
                 products = new List<ThingDefCountClass> { new ThingDefCountClass(output, 1) },
                 modContentPack = output.modContentPack,
+                allowMixingIngredients = false,
+            };
+
+            recipe.effectWorking = DefDatabase<EffecterDef>.GetNamed("Cook", errorOnFail: false);
+            recipe.soundWorking = DefDatabase<SoundDef>.GetNamed("Recipe_CookMeal", errorOnFail: false);
+
+            return recipe;
+        }
+
+        private static RecipeDef CreateAnyMealPackingRecipeDef(
+            List<ThingDef> standardMeals,
+            ModContentPack modContent)
+        {
+            var ingredientFilter = new ThingFilter();
+            foreach (var meal in standardMeals)
+                ingredientFilter.SetAllow(meal, true);
+
+            var ingredient = new IngredientCount();
+            ingredient.filter = ingredientFilter;
+            ingredient.SetBaseCount(1);
+
+            var woodFilter = new ThingFilter();
+            woodFilter.SetAllow(ThingDefOf.WoodLog, true);
+
+            var woodIngredient = new IngredientCount();
+            woodIngredient.filter = woodFilter;
+            woodIngredient.SetBaseCount(1f);
+
+            var fixedFilter = new ThingFilter();
+            foreach (var meal in standardMeals)
+                fixedFilter.SetAllow(meal, true);
+            fixedFilter.SetAllow(ThingDefOf.WoodLog, true);
+
+            PackingRecipeFilters.Add(ingredientFilter);
+            PackingRecipeFilters.Add(fixedFilter);
+
+            ThingDef placeholderPacked = DefDatabase<ThingDef>.GetNamed(PackedPrefix + "MealSimple");
+
+            var recipe = new RecipeDef
+            {
+                defName = PackedPrefix_Recipe + "Any",
+                label = "pack any meal",
+                description = "Pack any meal to take anywhere.",
+                jobString = "Packing a meal.",
+                workAmount = 100f,
+                workSkill = SkillDefOf.Cooking,
+                workSpeedStat = StatDefOf.WorkSpeedGlobal,
+                ingredients = new List<IngredientCount> { ingredient, woodIngredient },
+                fixedIngredientFilter = fixedFilter,
+                defaultIngredientFilter = fixedFilter,
+                products = new List<ThingDefCountClass> { new ThingDefCountClass(placeholderPacked, 1) },
+                modContentPack = modContent,
                 allowMixingIngredients = false,
             };
 
